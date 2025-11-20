@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TensorFlow.js Activation Functions (TinyTorch 02)</title>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0"></script>
+
+<h2 align=center>TensorFlow.js Activation Functions - TinyTorch Style</h2>
+
+<br>See the video <a href="https://www.youtube.com/watch?v=ACQy0FhL5RY&list=PL57Dnr1H_egukaDgFqwEnDVStd7Jktg1E&index=2"> here. </a><br>
+<iframe width="250" height="140" src="https://www.youtube.com/embed/ACQy0FhL5RY" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe><br><br><br>
+
+<div style="font-size:15px; background-color:lightyellow; width:88%;  border:5px solid blue; padding:5px; margin:5px;"> 
+This page demonstrates **Activation Functions**, which introduce **non-linearity** to the neural network. We implement the **Forward Pass** of key functions from scratch (the TinyTorch way) and then use the optimized TF.js version.
+<ol>  
+    <li><b>ReLU (Rectified Linear Unit)</b>: The industry standard for hidden layers.
+    <li><b>Sigmoid</b>: Used primarily for binary classification output (0 to 1).
+    <li><b>Softmax</b>: Used exclusively for multi-class classification output (probabilities that sum to 1).
+    <li>**"Show How, Then Use" Strategy**: Custom JavaScript functions vs. optimized TF.js.
+</ol>
+</div><br>
+
+<div id="myDiv321Code"> 
+
+<script>
+// NOTE: All code is compressed to maintain the line-break dependencies for the live-edit feature.
+// Helper function formats tensors with shape information
+async function myTensorTable(myDiv, myOutTensor, myCols, myTitle){   
+ document.getElementById(myDiv).innerHTML += '<b>' + myTitle + '</b><br>'
+ document.getElementById(myDiv).innerHTML += '<span style="color:blue;">Shape: [' + myOutTensor.shape.join(' × ') + '] | Size: ' + myOutTensor.size + '</span><br>'
+ const myOutput = await myOutTensor.data()
+ myTemp = '<table border=3><tr>'
+   for (myCount = 0;    myCount <= myOutTensor.size - 1;   myCount++){   
+     myTemp += '<td>'+ myOutput[myCount].toFixed(4) + '</td>'
+     if (myCount % myCols == myCols-1){
+         myTemp += '</tr><tr>'
+     }
+   }   
+   myTemp += '</tr></table>'
+   document.getElementById(myDiv).innerHTML += myTemp + '<br>'
+}
+    
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////       
+// 1. TinyTorch-Style (Pure JS) Implementations for Forward Pass
+// ReLU: max(0, x)
+function myReluFromScratch(myArray){return myArray.map(myElement => Math.max(0, myElement));}
+// Sigmoid: 1 / (1 + e^-x)
+function mySigmoidFromScratch(myArray){return myArray.map(myElement => 1 / (1 + Math.exp(-myElement)));}
+// Softmax: e^x_i / sum(e^x) (Uses a common stability trick)
+function mySoftmaxFromScratch(myLogitsArray){const myMaxLogit=Math.max(...myLogitsArray);const myExponentsArray=myLogitsArray.map(myLogit=>Math.exp(myLogit-myMaxLogit));const mySumExponents=myExponentsArray.reduce((myAccumulator,myCurrentValue)=>myAccumulator+myCurrentValue,0);return myExponentsArray.map(myExponent=>myExponent/mySumExponents);}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////   
+
+async function myTest321(){
+ 
+  document.getElementById('myDiv321').innerHTML ='<h3>🧠 TinyTorch 02: Activation Functions in Action</h3><br>'  
+ 
+  const myLogits = [-3.0, 0.0, 1.5, 4.0] // Example raw scores (logits)
+  const myLogitsTensor = tf.tensor1d(myLogits)
+ 
+  document.getElementById('myDiv321').innerHTML +='<h4>Input Data (Logits)</h4>'
+  await myTensorTable('myDiv321', myLogitsTensor, 4, 'Input Logits (1D Tensor)')
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+ 
+ 
+  // ========== SECTION 1: ReLU (Rectified Linear Unit) ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>1️⃣ ReLU: max(0, x)</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Passes positive values, sets negative values to zero.</i><br>'
+  document.getElementById('myDiv321').innerHTML +='<span style="color:red;">Derivative is 1 for x>0, 0 for x<=0.</span><br><br>'
+ 
+  // Custom Implementation
+  const myReluResult = myReluFromScratch(myLogits)
+  document.getElementById('myDiv321').innerHTML +='<b>Custom myReluFromScratch (Pure JS)</b><br>'
+  document.getElementById('myDiv321').innerHTML +='Result: [' + myReluResult.map(p => p.toFixed(2)).join(', ') + ']<br><br>'
+ 
+  // Optimized TF.js Implementation
+  const myTfRelu = myLogitsTensor.relu()
+  await myTensorTable('myDiv321', myTfRelu, 4, 'Optimized tf.relu()')
+  myTfRelu.dispose()
+ 
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+ 
+ 
+  // ========== SECTION 2: Sigmoid ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>2️⃣ Sigmoid: $\\sigma(x) = \\frac{1}{1 + e^{-x}}$</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Compresses values into a range of [0, 1], useful for binary output.</i><br>'
+  document.getElementById('myDiv321').innerHTML +='<span style="color:red;">Derivative is $\\sigma(x) \\cdot (1 - \\sigma(x))$.</span><br><br>'
+ 
+  // Custom Implementation
+  const mySigmoidResult = mySigmoidFromScratch(myLogits)
+  document.getElementById('myDiv321').innerHTML +='<b>Custom mySigmoidFromScratch (Pure JS)</b><br>'
+  document.getElementById('myDiv321').innerHTML +='Result: [' + mySigmoidResult.map(p => p.toFixed(4)).join(', ') + ']<br><br>'
+ 
+  // Optimized TF.js Implementation
+  const myTfSigmoid = myLogitsTensor.sigmoid()
+  await myTensorTable('myDiv321', myTfSigmoid, 4, 'Optimized tf.sigmoid()')
+  myTfSigmoid.dispose()
+ 
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+ 
+ 
+  // ========== SECTION 3: Softmax ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>3️⃣ Softmax: Probabilities for Multi-Class Classification</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Converts raw scores into a probability distribution that sums to 1.</i><br>'
+  document.getElementById('myDiv321').innerHTML +='<span style="color:red;">Derivative is complex, involving the Jacobian matrix.</span><br><br>'
+ 
+  // Custom Implementation
+  const mySoftmaxResult = mySoftmaxFromScratch(myLogits)
+  document.getElementById('myDiv321').innerHTML +='<b>Custom mySoftmaxFromScratch (Pure JS)</b><br>'
+  document.getElementById('myDiv321').innerHTML +='Result: [' + mySoftmaxResult.map(p => p.toFixed(4)).join(', ') + ']<br>'
+  document.getElementById('myDiv321').innerHTML +='Sum of Probabilities: ' + mySoftmaxResult.reduce((a, b) => a + b, 0).toFixed(4) + '<br><br>'
+ 
+  // Optimized TF.js Implementation
+  const myTfSoftmax = myLogitsTensor.softmax()
+  await myTensorTable('myDiv321', myTfSoftmax, 4, 'Optimized tf.softmax()')
+ 
+  // Check sum on TF.js result
+  const mySumCheck = myTfSoftmax.sum()
+  document.getElementById('myDiv321').innerHTML +='TF.js Sum Check: ' + (await mySumCheck.data())[0].toFixed(4) + '<br>'
+ 
+  myTfSoftmax.dispose()
+  mySumCheck.dispose()
+  myLogitsTensor.dispose()
+ 
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+ 
+ 
+  document.getElementById('myDiv321').innerHTML +='<h3>🎓 Key Takeaways</h3>'
+  document.getElementById('myDiv321').innerHTML +='<ul>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Activations provide Non-Linearity</b>: They let the network learn complex patterns.</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Forward Pass</b>: The mathematical formula (what we implemented with our "my" functions).</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Backward Pass (Gradient)</b>: The derivative, which is critical for learning, is handled by TF.js.</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Choice Matters</b>: ReLU for hidden layers, Sigmoid/Softmax for output layers.</li>'
+  document.getElementById('myDiv321').innerHTML +='</ul>'
+}
+
+</script>
+
+<input type="button" id="myButton321" value="Run All" onclick="{
+    myTest321();
+}"><br><br><br>
+
+</div>
+<div id='myDiv321'>...</div><br>
+
+<input id="myUpdate321"  type=button value="Update and Run" style="visibility:hidden;" onclick="{
+
+   // 1. Remove the injected wrapper lines from the textarea value
+  myFred = document.getElementById('myTextarea321').value.split('\n')
+  myFred.pop()
+  myFred.push('')
+  myFred.shift()
+  myFred.shift()
+  myJoe = myFred.join('\n')
+
+   // 2. Clear the old code container content
+  document.getElementById('myDiv321Code').innerHTML = ''
+ 
+   // 3. Create a new executable script element
+  const myNewScript = document.createElement('script')
+  myNewScript.textContent = myJoe
+ 
+   // 4. Append the new script to the container (which executes it)
+  document.getElementById('myDiv321Code').appendChild(myNewScript)
+ 
+   // 5. Run the newly defined function
+  document.getElementById('myButton321').click()
+                                             
+}"><br>
+
+<textarea id="myTextarea321"   wrap="off"  style= "font-size:15px; color:white; background-color:black; width:90%;"   rows=2 onclick="{
+  if (myOnce321){
+     myTextGrow('myTextarea321', 'myDiv321Code')
+     document.getElementById('myUpdate321').style.visibility = 'visible'
+     myOnce321 = false
+  }
+}">
+Click here to see the working HTML code.
+</textarea><br>
+
+<br><br><br><hr><br><br><br><br>
+
+This <a href="https://github.com/hpssjellis/beginner-tensorflowjs-examples-in-javascript">Github</a>, ...  
+this <a href="https://hpssjellis.github.io/beginner-tensorflowjs-examples-in-javascript/">Github Website Version</a>, ... 
+this <a href="http://rocksetta.com/tensorflowjs/">Hosted Website Version</a>, ... 
+<a href="https://js.tensorflow.org/">Tensorflowjs</a> <br> <br>
+
+By Jeremy Ellis <br>
+Twitter<a href="https://twitter.com/@rocksetta">@rocksetta</a><br>
+Website <a href="http://rocksetta.com">http://rocksetta.com</a><br>
+Use at your own risk!
+
+<script>
+
+myOnce321 = true    // so textareas are only clicked once
+
+function myTextGrow(myT, myB){
+   var myCursorStart = document.getElementById(myT).selectionStart
+   var myCursorEnd = document.getElementById(myT).selectionEnd
+
+   myDivName = myB.replace('Code','')
+   document.getElementById(myT).value = '\x3Cscript src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0"> \x3C/script> \n\n' + document.getElementById(myB).innerHTML 
+   document.getElementById(myT).value += '<div id=\''+myDivName+'\'>...</div><br>'     
+   setTimeout(function() {
+      while (  document.getElementById(myT).clientHeight < document.getElementById(myT).scrollHeight){                                                                                                                                              
+          document.getElementById(myT).rows += 3; 
+      } 
+   }, 100)
+
+  document.getElementById(myT).selectionStart = myCursorStart
+  document.getElementById(myT).selectionEnd = myCursorEnd
+}  
+
+</script>    
+ 
+</body>
+</html>
