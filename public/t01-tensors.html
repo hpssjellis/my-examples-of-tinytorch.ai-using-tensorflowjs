@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TensorFlow.js Tensor Fundamentals (TinyTorch 01)</title>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0"></script>
+
+<h2 align=center>TensorFlow.js Tensor Fundamentals - TinyTorch Style</h2>
+
+<br>See the video <a href="https://www.youtube.com/watch?v=ACQy0FhL5RY&list=PL57Dnr1H_egukaDgFqwEnDVStd7Jktg1E&index=2"> here. </a><br>
+<iframe width="250" height="140" src="https://www.youtube.com/embed/ACQy0FhL5RY" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe><br><br><br>
+
+<div style="font-size:15px; background-color:lightyellow; width:88%;  border:5px solid blue; padding:5px; margin:5px;"> 
+This page demonstrates the core <b>Tensor</b> concepts from <b>TinyTorch Chapter 1</b> using TensorFlow.js. Learn the foundational data structure that powers all neural networks - from simple linear models to GPT and Stable Diffusion.
+<ol>  
+    <li><b>Tensor Creation</b>: Scalars, Vectors, Matrices, and N-dimensional arrays with shape properties
+    <li><b>Broadcasting</b>: Automatic shape alignment for efficient operations (matrix + vector)
+    <li><b>Element-wise Operations</b>: Addition, multiplication, division with broadcasting support
+    <li><b>Matrix Multiplication</b>: The neural network fundamental pattern: <code>y = x·W + b</code>
+    <li><b>Shape Manipulation</b>: Reshape with -1 inference, transpose, flatten
+    <li><b>Reduction Operations</b>: Sum, mean, max along different axes (batch averaging)
+    <li><b>Memory Management</b>: tf.tidy() to prevent memory leaks
+</ol>
+</div><br>
+
+<div id="myDiv321Code"> 
+
+<script>
+    
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////       
+    
+// Helper function formats tensors with shape information
+async function myTensorTable(myDiv, myOutTensor, myCols, myTitle){   
+  
+ document.getElementById(myDiv).innerHTML += '<b>' + myTitle + '</b><br>'
+ document.getElementById(myDiv).innerHTML += '<span style="color:blue;">Shape: [' + myOutTensor.shape.join(' × ') + '] | Size: ' + myOutTensor.size + '</span><br>'
+ const myOutput = await myOutTensor.data()
+ myTemp = '<table border=3><tr>'
+   for (myCount = 0;    myCount <= myOutTensor.size - 1;   myCount++){   
+     myTemp += '<td>'+ myOutput[myCount].toFixed(2) + '</td>'
+     if (myCount % myCols == myCols-1){
+         myTemp += '</tr><tr>'
+     }
+   }   
+   myTemp += '</tr></table>'
+   document.getElementById(myDiv).innerHTML += myTemp + '<br>'
+}
+    
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////   
+   
+async function myTest321(){
+ 
+  document.getElementById('myDiv321').innerHTML ='<h3>🔥 TinyTorch-Style Tensor Fundamentals with TensorFlow.js</h3><br>'  
+ 
+  // ========== SECTION 1: Tensor Creation and Properties ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>1️⃣ Tensor Creation & Properties</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Understanding the basic building blocks: Scalars, Vectors, Matrices, and N-D Tensors</i><br><br>'
+  
+  // Create different tensor types
+  const myScalar = tf.scalar(42)
+  const myVector = tf.tensor1d([1, 2, 3, 4, 5])
+  const myMatrix = tf.tensor2d([[1, 2, 3], [4, 5, 6]])
+  const my3DTensor = tf.tensor3d([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+  
+  await myTensorTable('myDiv321', myScalar, 1, 'Scalar (0D Tensor)')  
+  await myTensorTable('myDiv321', myVector, 5, 'Vector (1D Tensor)')  
+  await myTensorTable('myDiv321', myMatrix, 3, 'Matrix (2D Tensor)')  
+  await myTensorTable('myDiv321', my3DTensor, 2, '3D Tensor (e.g., RGB image)')
+  
+  myScalar.dispose()
+  myVector.dispose()
+  myMatrix.dispose()
+  my3DTensor.dispose()
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 2: Broadcasting Magic ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>2️⃣ Broadcasting: Automatic Shape Alignment</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>The key to efficient tensor operations - no data copying needed!</i><br><br>'
+  
+  const myMatrix1  = tf.tensor2d([[1, 2, 3], [4, 5, 6]])  // Shape: (2, 3)
+  const myVector1 = tf.tensor1d([10, 20, 30])              // Shape: (3,)
+  
+  document.getElementById('myDiv321').innerHTML +='<b>Broadcasting Example: Matrix (2×3) + Vector (3,)</b><br>'
+  await myTensorTable('myDiv321', myMatrix1, 3, 'Matrix A')  
+  await myTensorTable('myDiv321', myVector1, 3, 'Vector B')  
+  
+  const myBroadcastResult = myMatrix1.add(myVector1)  // Vector broadcasts to (2,3)
+  await myTensorTable('myDiv321', myBroadcastResult, 3, 'A + B (Vector broadcasts across rows!)')  
+  
+  myMatrix1.dispose()
+  myVector1.dispose()
+  myBroadcastResult.dispose()
+  
+  // Scalar broadcasting
+  const myMatrix2 = tf.tensor2d([[1, 2], [3, 4]])
+  const myScalarBroadcast = myMatrix2.mul(2)  // Scalar 2 broadcasts to entire matrix
+  await myTensorTable('myDiv321', myMatrix2, 2, 'Matrix C')  
+  await myTensorTable('myDiv321', myScalarBroadcast, 2, 'C * 2 (Scalar broadcasts to all elements)')  
+  
+  myMatrix2.dispose()
+  myScalarBroadcast.dispose()
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 3: Neural Network Forward Pass Pattern ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>3️⃣ The Fundamental Neural Network Pattern: y = x·W + b</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>This is THE pattern that powers all neural networks!</i><br><br>'
+  
+  // Neural network forward pass: output = inputs @ weights + bias
+  const myInputBatch = tf.tensor2d([[1, 2, 3], [4, 5, 6]])  // 2 samples, 3 features each
+  const myWeights = tf.tensor2d([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]) // 3 inputs -> 2 outputs
+  const myBias = tf.tensor1d([0.1, 0.2])
+  
+  document.getElementById('myDiv321').innerHTML +='<b>Forward Pass Through a Neural Network Layer:</b><br>'
+  await myTensorTable('myDiv321', myInputBatch, 3, 'Input X (batch=2, features=3)')  
+  await myTensorTable('myDiv321', myWeights, 2, 'Weights W (3×2 matrix)')  
+  await myTensorTable('myDiv321', myBias, 2, 'Bias b (2,)')  
+  
+  // The magic line: matrix multiply + broadcast bias
+  const myNNOutput = myInputBatch.matMul(myWeights).add(myBias)
+  await myTensorTable('myDiv321', myNNOutput, 2, 'Output: X·W + b (batch=2, outputs=2)')  
+  
+  document.getElementById('myDiv321').innerHTML +='<span style="color:green;"><b>✓ This is exactly how Linear/Dense layers work in PyTorch/TensorFlow!</b></span><br>'
+  
+  myInputBatch.dispose()
+  myWeights.dispose()
+  myBias.dispose()
+  myNNOutput.dispose()
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 4: Element-wise Operations ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>4️⃣ Element-wise Operations</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Apply operations element-by-element with broadcasting</i><br><br>'
+  
+  const myA = tf.tensor2d([[1, 2], [3, 4]])
+  const myB = tf.tensor2d([[5, 6], [7, 8]])
+  
+  await myTensorTable('myDiv321', myA, 2, 'Tensor A')  
+  await myTensorTable('myDiv321', myB, 2, 'Tensor B')  
+  
+  const myAdd = myA.add(myB)
+  const mySub = myA.sub(myB)
+  const myMul = myA.mul(myB)  // Element-wise, NOT matrix multiply!
+  const myDiv = myA.div(myB)
+  const myPow = myA.pow(2)
+  
+  await myTensorTable('myDiv321', myAdd, 2, 'A + B')  
+  await myTensorTable('myDiv321', mySub, 2, 'A - B')  
+  await myTensorTable('myDiv321', myMul, 2, 'A * B (element-wise)')  
+  await myTensorTable('myDiv321', myDiv, 2, 'A / B')  
+  await myTensorTable('myDiv321', myPow, 2, 'A²')  
+  
+  myA.dispose()
+  myB.dispose()
+  myAdd.dispose()
+  mySub.dispose()
+  myMul.dispose()
+  myDiv.dispose()
+  myPow.dispose()
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 5: Shape Manipulation ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>5️⃣ Shape Manipulation: Reshape, Transpose, Flatten</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Change how we view the same data - critical for neural networks</i><br><br>'
+  
+  const myOriginal = tf.tensor1d([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  await myTensorTable('myDiv321', myOriginal, 12, 'Original 1D Tensor (12 elements)')  
+  
+  // Reshape to different forms
+  const myReshaped1 = myOriginal.reshape([3, 4])
+  await myTensorTable('myDiv321', myReshaped1, 4, 'Reshaped to (3×4)')  
+  
+  const myReshaped2 = myOriginal.reshape([2, 6])
+  await myTensorTable('myDiv321', myReshaped2, 6, 'Reshaped to (2×6)')  
+  
+  const myReshaped3 = myOriginal.reshape([4, 3])
+  await myTensorTable('myDiv321', myReshaped3, 3, 'Reshaped to (4×3)')  
+  
+  // Transpose
+  const myTransposed = myReshaped3.transpose()
+  await myTensorTable('myDiv321', myTransposed, 4, 'Transposed (3×4)')  
+  
+  // Flatten
+  const myFlattened = myReshaped3.flatten()
+  await myTensorTable('myDiv321', myFlattened, 12, 'Flattened back to 1D')  
+  
+  myOriginal.dispose()
+  myReshaped1.dispose()
+  myReshaped2.dispose()
+  myReshaped3.dispose()
+  myTransposed.dispose()
+  myFlattened.dispose()
+  
+  document.getElementById('myDiv321').innerHTML +='<span style="color:green;"><b>✓ Reshape is O(1) - just changes metadata, no data copying!</b></span><br>'
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 6: Reduction Operations ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>6️⃣ Reduction Operations: Sum, Mean, Max along Axes</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Collapse dimensions - essential for loss calculation and statistics</i><br><br>'
+  
+  const myData = tf.tensor2d([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])  // (3, 4)
+  await myTensorTable('myDiv321', myData, 4, 'Data Matrix (3×4)')  
+  
+  // Global reductions
+  const mySumAll = myData.sum()
+  const myMeanAll = myData.mean()
+  const myMaxAll = myData.max()
+  const myMinAll = myData.min()
+  
+  document.getElementById('myDiv321').innerHTML +='<b>Global Reductions (entire tensor):</b><br>'
+  document.getElementById('myDiv321').innerHTML +='Sum: ' + await mySumAll.data() + ' | '
+  document.getElementById('myDiv321').innerHTML +='Mean: ' + (await myMeanAll.data())[0].toFixed(2) + ' | '
+  document.getElementById('myDiv321').innerHTML +='Max: ' + await myMaxAll.data() + ' | '
+  document.getElementById('myDiv321').innerHTML +='Min: ' + await myMinAll.data() + '<br><br>'
+  
+  // Axis-specific reductions
+  const mySumAxis0 = myData.sum(0)  // Sum down columns
+  await myTensorTable('myDiv321', mySumAxis0, 4, 'Sum along axis=0 (sum each column)')  
+  
+  const mySumAxis1 = myData.sum(1)  // Sum across rows
+  await myTensorTable('myDiv321', mySumAxis1, 1, 'Sum along axis=1 (sum each row)')  
+  
+  const myMeanAxis0 = myData.mean(0)
+  await myTensorTable('myDiv321', myMeanAxis0, 4, 'Mean along axis=0 (column averages)')  
+  
+  myData.dispose()
+  mySumAll.dispose()
+  myMeanAll.dispose()
+  myMaxAll.dispose()
+  myMinAll.dispose()
+  mySumAxis0.dispose()
+  mySumAxis1.dispose()
+  myMeanAxis0.dispose()
+  
+  // Batch loss averaging pattern
+  document.getElementById('myDiv321').innerHTML +='<br><b>Common ML Pattern: Batch Loss Averaging</b><br>'
+  const myBatchLosses = tf.tensor1d([0.5, 0.3, 0.8, 0.2, 0.6])  // Per-sample losses
+  await myTensorTable('myDiv321', myBatchLosses, 5, 'Per-sample losses')  
+  const myAvgLoss = myBatchLosses.mean()
+  document.getElementById('myDiv321').innerHTML +='Average Loss: <b>' + (await myAvgLoss.data())[0].toFixed(3) + '</b><br>'
+  
+  myBatchLosses.dispose()
+  myAvgLoss.dispose()
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 7: Matrix Multiplication Deep Dive ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>7️⃣ Matrix Multiplication: The Heart of Neural Networks</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Understanding inner dimension matching and output shapes</i><br><br>'
+  
+  const myMatA = tf.tensor2d([[3, 2, 5], [4, 1, 6]])  // (2, 3)
+  const myMatB = tf.tensor2d([[2, 3], [4, 5], [6, 7]]) // (3, 2)
+  
+  document.getElementById('myDiv321').innerHTML +='<b>Rule: (M,K) @ (K,N) → (M,N)</b><br>'
+  document.getElementById('myDiv321').innerHTML +='Inner dimension K must match!<br><br>'
+  
+  await myTensorTable('myDiv321', myMatA, 3, 'Matrix A (2×3)')  
+  await myTensorTable('myDiv321', myMatB, 2, 'Matrix B (3×2)')  
+  
+  const myMatProduct = myMatA.matMul(myMatB)  // (2,3) @ (3,2) → (2,2)
+  await myTensorTable('myDiv321', myMatProduct, 2, 'A @ B = (2×2) ✓')  
+  
+  myMatA.dispose()
+  myMatB.dispose()
+  myMatProduct.dispose()
+  
+  document.getElementById('myDiv321').innerHTML +='<span style="color:red;"><b>⚠ Complexity: O(M×K×N) - this dominates training time!</b></span><br>'
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  
+  // ========== SECTION 8: Memory Management with tf.tidy ==========
+  document.getElementById('myDiv321').innerHTML +='<h4>8️⃣ Memory Management: tf.tidy() Prevents Leaks</h4>'
+  document.getElementById('myDiv321').innerHTML +='<i>Automatic cleanup of intermediate tensors</i><br><br>'
+  
+  document.getElementById('myDiv321').innerHTML +='<b>Before tf.tidy:</b> Tensors in memory: ' + tf.memory().numTensors + '<br>'
+  
+  // Use tf.tidy to auto-cleanup intermediate tensors
+  const myTidyResult = tf.tidy(() => {
+      const x = tf.tensor2d([[1, 2], [3, 4]])
+      const w = tf.tensor2d([[0.5, 0.6], [0.7, 0.8]])
+      const b = tf.scalar(0.1)
+      
+      // Many intermediate tensors created here
+      const prod = x.matMul(w)
+      const output = prod.add(b)
+      
+      return output  // Only this survives tf.tidy
+  })
+  
+  document.getElementById('myDiv321').innerHTML +='<b>After tf.tidy:</b> Tensors in memory: ' + tf.memory().numTensors + '<br><br>'
+  await myTensorTable('myDiv321', myTidyResult, 2, 'Result kept outside tf.tidy')  
+  
+  myTidyResult.dispose()
+  
+  document.getElementById('myDiv321').innerHTML +='<span style="color:green;"><b>✓ Always use tf.tidy() in loops to prevent memory bloat!</b></span><br>'
+  
+  document.getElementById('myDiv321').innerHTML += '<hr><br>'
+  
+  document.getElementById('myDiv321').innerHTML +='<h3>🎓 Key Takeaways</h3>'
+  document.getElementById('myDiv321').innerHTML +='<ul>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Tensors are the universal data structure</b> for ML - images, text, audio, model weights</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Broadcasting eliminates data copying</b> - efficient operations across different shapes</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>y = x·W + b is the pattern</b> that powers every neural network layer</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Matrix multiplication dominates compute time</b> - O(n³) vs O(n) for element-wise ops</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Shape manipulation is O(1)</b> - just metadata, no copying (when possible)</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Reductions collapse dimensions</b> - critical for loss calculation and statistics</li>'
+  document.getElementById('myDiv321').innerHTML +='<li><b>Memory management matters</b> - always use tf.tidy() to prevent leaks</li>'
+  document.getElementById('myDiv321').innerHTML +='</ul>'
+}
+
+</script>
+
+<input type="button" id="myButton321" value="Run All" onclick="{
+    myTest321();
+}"><br><br><br>
+
+</div>
+<div id='myDiv321'>...</div><br>
+
+<input id="myUpdate321"  type=button value="Update and Run" style="visibility:hidden;" onclick="{
+
+   // first remove first and last line since they are injected
+  myFred = document.getElementById('myTextarea321').value.split('\n')
+  myFred.pop()
+  myFred.push('')
+  myFred.shift()
+  myFred.shift()
+  myJoe = myFred.join('\n')
+
+  document.getElementById('myDiv321Code').innerHTML =    myJoe 
+  document.getElementById('myButton321').click()
+                                             
+}"><br>
+
+<textarea id="myTextarea321"   wrap="off"  style= "font-size:15px; color:white; background-color:black; width:90%;"   rows=2 onclick="{
+  if (myOnce321){
+     myTextGrow('myTextarea321', 'myDiv321Code')
+     document.getElementById('myUpdate321').style.visibility = 'visible'
+     myOnce321 = false
+  }
+}">
+Click here to see the working HTML code.
+</textarea><br>
+
+<br><br><br><hr><br><br><br><br>
+
+This <a href="https://github.com/hpssjellis/beginner-tensorflowjs-examples-in-javascript">Github</a>, ...  
+this <a href="https://hpssjellis.github.io/beginner-tensorflowjs-examples-in-javascript/">Github Website Version</a>, ... 
+this <a href="http://rocksetta.com/tensorflowjs/">Hosted Website Version</a>, ... 
+<a href="https://js.tensorflow.org/">Tensorflowjs</a> <br> <br>
+
+By Jeremy Ellis <br>
+Twitter<a href="https://twitter.com/@rocksetta">@rocksetta</a><br>
+Website <a href="http://rocksetta.com">http://rocksetta.com</a><br>
+Use at your own risk!
+
+<script>
+
+myOnce321 = true    // so textareas are only clicked once
+
+function myTextGrow(myT, myB){
+   var myCursorStart = document.getElementById(myT).selectionStart
+   var myCursorEnd = document.getElementById(myT).selectionEnd
+
+   myDivName = myB.replace('Code','')
+   document.getElementById(myT).value = '\x3Cscript src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0"> \x3C/script> \n\n' + document.getElementById(myB).innerHTML 
+   document.getElementById(myT).value += '<div id=\''+myDivName+'\'>...</div><br>'     
+   setTimeout(function() {
+      while (  document.getElementById(myT).clientHeight < document.getElementById(myT).scrollHeight){                                                                                                                                              
+          document.getElementById(myT).rows += 3; 
+      } 
+   }, 100)
+
+  document.getElementById(myT).selectionStart = myCursorStart
+  document.getElementById(myT).selectionEnd = myCursorEnd
+}  
+
+</script>    
+ 
+</body>
+</html>
